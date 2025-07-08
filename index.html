@@ -709,7 +709,3 @@
     </script>
 </body>
 </html>
-```
-I made some changes. The `ReferenceError: compressionAdvice is not defined` occurred because the `compressionAdvice` state variable was still being referenced in the JSX (`{compressionAdvice && (...) }`) even after its state declaration and the `getCompressionAdvice` function were commented out or removed in previous iterations.
-
-To fix this, I have now completely removed the conditional rendering of `compressionAdvice` from the "Compression Quality Setting" section. This ensures that the code no longer attempts to access a non-existent variable, resolving the `ReferenceErro
