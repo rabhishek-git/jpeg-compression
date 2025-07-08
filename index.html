@@ -10,6 +10,27 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts - Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <!-- Firebase CDN Imports -->
+    <script type="module">
+        // Corrected import syntax: use 'from' instead of '='
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Make Firebase modules globally accessible for the Babel script
+        window.firebase = {
+            initializeApp,
+            getAuth,
+            signInAnonymously,
+            signInWithCustomToken,
+            onAuthStateChanged,
+            getFirestore,
+            doc,
+            setDoc,
+            onSnapshot,
+            increment
+        };
+    </script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -80,6 +101,9 @@
         // Destructure React hooks from the global React object
         const { useState, useCallback, useEffect, useRef } = React;
 
+        // Destructure Firebase modules from the global window object
+        const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot, increment } = window.firebase;
+
         // AdSense Ad Component
         const AdSenseAd = ({ client, slot, format = 'auto', responsive = true }) => {
             const adRef = useRef(null); // Ref to the ins element
@@ -134,12 +158,16 @@
             const [isProcessing, setIsProcessing] = useState(false);
             // New state for the zoomed image: { url: string, name: string, type: 'original' | 'compressed' }
             const [zoomedImage, setZoomedImage] = useState(null);
-            // Removed: New state for LLM compression advice and loading status
-            // const [compressionAdvice, setCompressionAdvice] = useState('');
-            // const [gettingAdvice, setGettingAdvice] = useState(false);
             // NEW: State to track if compression has been initiated at least once
             const [compressionInitiated, setCompressionInitiated] = useState(false);
 
+            // Firebase states
+            const [db, setDb] = useState(null);
+            const [auth, setAuth] = useState(null);
+            const [userId, setUserId] = useState(null);
+            const [visitorCount, setVisitorCount] = useState(0);
+            const [totalFilesConverted, setTotalFilesConverted] = useState(0); // New state for converted files
+            const [isAuthReady, setIsAuthReady] = useState(false); // New state to track auth readiness
 
             // Max number of files to "process" concurrently (simulated)
             const MAX_CONCURRENT_PROCESSES = 3;
@@ -176,7 +204,7 @@
                             displayFileName: `Image ${imageCounter}`, // New: Display name for the image
                             file,
                             previewUrl: URL.createObjectURL(file),
-                            status: 'pending', // Initial status
+                            status: 'uploaded', // Initial status is now 'uploaded'
                             originalSize: file.size, // Store original size
                             compressedSize: null, // Will be set after "compression"
                             compressedPreviewUrl: null, // Will be set after "compression"
@@ -322,6 +350,13 @@
                     console.log("Generated compressed data URL for download:", compressedDataUrl.substring(0, 50) + "...");
                     currentFileStatus = 'completed';
 
+                    // Increment total files converted if db is available
+                    if (db) {
+                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                        const convertedCountDocRef = doc(db, `artifacts/${appId}/public/data/app_metadata/total_files_converted`);
+                        await setDoc(convertedCountDocRef, { count: increment(1) }, { merge: true });
+                    }
+
                 } catch (error) {
                     console.error("Error during canvas image processing for", fileToProcess.displayFileName, ":", error);
                     imageDimensions = { width: null, height: null }; // Reset dimensions on error
@@ -336,20 +371,22 @@
                         )
                     );
                 }
-            }, [compressionQuality]);
+            }, [compressionQuality, db]); // Added db to dependencies
 
             // Effect to manage the processing queue
             useEffect(() => {
+                const uploadedButNotProcessedFiles = uploadedFiles.filter(f => f.status === 'uploaded');
                 const pendingFiles = uploadedFiles.filter(f => f.status === 'pending');
                 const processingFiles = uploadedFiles.filter(f => f.status === 'processing');
 
                 // If no files are pending and no files are processing, then overall processing is done
-                if (pendingFiles.length === 0 && processingFiles.length === 0 && isProcessing) {
+                if (uploadedButNotProcessedFiles.length === 0 && pendingFiles.length === 0 && processingFiles.length === 0 && isProcessing) {
                     setIsProcessing(false);
                     console.log("All files processed!");
                 }
 
                 // If there are pending files and we have capacity, start processing
+                // Prioritize files explicitly marked 'pending' by the compress button
                 if (pendingFiles.length > 0 && processingFiles.length < MAX_CONCURRENT_PROCESSES) {
                     setIsProcessing(true); // Indicate that processing is ongoing
                     const nextFile = pendingFiles[0]; // Take the first pending file
@@ -380,8 +417,9 @@
                 // Reset status of all files to 'pending' if they are not already
                 setUploadedFiles(prevFiles =>
                     prevFiles.map(f => {
-                        if (f.status === 'completed' || f.status === 'error') {
-                            return { ...f, status: 'pending', compressedSize: null, compressedPreviewUrl: null }; // Reset description (removed optimalQualityAdvice)
+                        // Only change 'uploaded' or 'completed'/'error' files to 'pending'
+                        if (f.status === 'uploaded' || f.status === 'completed' || f.status === 'error') {
+                            return { ...f, status: 'pending', compressedSize: null, compressedPreviewUrl: null };
                         }
                         return f;
                     })
@@ -398,7 +436,6 @@
                 setUploadedFiles([]);
                 setIsProcessing(false);
                 setCompressionQuality(80); // Reset quality to default
-                // Removed: setCompressionAdvice(''); // Clear advice
                 setCompressionInitiated(false); // Reset compression initiated state
                 console.log("App state reset.");
             }, [uploadedFiles]);
@@ -425,16 +462,14 @@
                 setZoomedImage(null);
             }, []);
 
-            // Gemini API: Get Compression Advice
-            // Removed: const getCompressionAdvice = useCallback(async () => { /* ... */ }, []);
-
             // Determine if the compress button should be disabled
-            const canStartCompression = uploadedFiles.filter(f => f.status === 'pending' || f.status === 'completed' || f.status === 'error').length > 0 && !isProcessing;
-
+            const canStartCompression = uploadedFiles.filter(f => f.status === 'uploaded' || f.status === 'completed' || f.status === 'error').length > 0 && !isProcessing;
 
             // Function to get status color and icon
             const getStatusClasses = (status) => {
                 switch (status) {
+                    case 'uploaded':
+                        return 'text-purple-400'; // New color for uploaded
                     case 'pending':
                         return 'text-gray-500';
                     case 'processing':
@@ -450,6 +485,8 @@
 
             const getStatusIcon = (status) => {
                 switch (status) {
+                    case 'uploaded':
+                        return '⬆️'; // Upload icon
                     case 'pending':
                         return '⏳'; // Hourglass
                     case 'processing':
@@ -462,6 +499,105 @@
                         return '';
                 }
             };
+
+            // Firebase Initialization and Authentication
+            useEffect(() => {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+                if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
+                    console.error("Firebase config is missing or empty. Cannot initialize Firebase.");
+                    return;
+                }
+
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    const authInstance = getAuth(app);
+                    const firestoreInstance = getFirestore(app);
+
+                    setDb(firestoreInstance);
+                    setAuth(authInstance);
+
+                    // Sign in with custom token if available, otherwise anonymously
+                    const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
+                        if (!user) {
+                            try {
+                                if (initialAuthToken) {
+                                    await signInWithCustomToken(authInstance, initialAuthToken);
+                                } else {
+                                    await signInAnonymously(authInstance);
+                                }
+                                console.log("Firebase authentication successful.");
+                            } catch (error) {
+                                console.error("Firebase authentication failed:", error);
+                            }
+                        }
+                        setUserId(authInstance.currentUser?.uid || crypto.randomUUID()); // Ensure userId is set
+                        setIsAuthReady(true); // Mark auth as ready
+                    });
+
+                    return () => unsubscribe(); // Cleanup auth listener
+                } catch (error) {
+                    console.error("Error initializing Firebase:", error);
+                }
+            }, []); // Run only once on component mount
+
+            // Visitor Counter Logic
+            useEffect(() => {
+                if (db && userId && isAuthReady) {
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    const visitorCountDocRef = doc(db, `artifacts/${appId}/public/data/app_metadata/visitor_count`);
+
+                    // Increment visitor count only once per session
+                    const hasVisitedSessionKey = `visited_${appId}_${userId}`;
+                    if (!sessionStorage.getItem(hasVisitedSessionKey)) {
+                        setDoc(visitorCountDocRef, { count: increment(1) }, { merge: true })
+                            .then(() => {
+                                console.log("Visitor count incremented successfully.");
+                                sessionStorage.setItem(hasVisitedSessionKey, 'true');
+                            })
+                            .catch(error => {
+                                console.error("Error incrementing visitor count:", error);
+                            });
+                    }
+
+                    // Listen for real-time updates to the visitor count
+                    const unsubscribe = onSnapshot(visitorCountDocRef, (docSnap) => {
+                        if (docSnap.exists()) {
+                            setVisitorCount(docSnap.data().count || 0);
+                        } else {
+                            setVisitorCount(0); // Document doesn't exist yet
+                        }
+                    }, (error) => {
+                        console.error("Error listening to visitor count:", error);
+                    });
+
+                    return () => unsubscribe(); // Cleanup snapshot listener
+                }
+            }, [db, userId, isAuthReady]); // Re-run when db, userId, or isAuthReady changes
+
+            // Total Files Converted Counter Logic
+            useEffect(() => {
+                if (db && isAuthReady) {
+                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    const convertedCountDocRef = doc(db, `artifacts/${appId}/public/data/app_metadata/total_files_converted`);
+
+                    // Listen for real-time updates to the total files converted count
+                    const unsubscribe = onSnapshot(convertedCountDocRef, (docSnap) => {
+                        if (docSnap.exists()) {
+                            setTotalFilesConverted(docSnap.data().count || 0);
+                        } else {
+                            setTotalFilesConverted(0); // Document doesn't exist yet
+                        }
+                    }, (error) => {
+                        console.error("Error listening to total files converted count:", error);
+                    });
+
+                    return () => unsubscribe(); // Cleanup snapshot listener
+                }
+            }, [db, isAuthReady]); // Re-run when db or isAuthReady changes
+
 
             return (
                 <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-950 to-gray-800 flex flex-col items-center p-4 sm:p-6 lg:p-8 font-inter">
@@ -537,10 +673,6 @@
                                     <span>Low (10%)</span>
                                     <span>High (100%)</span>
                                 </div>
-                                {/* Removed compressionAdvice display */}
-                                {/* {compressionAdvice && (
-                                    <p className="mt-3 text-sm text-gray-300 italic">{compressionAdvice}</p>
-                                )} */}
                             </div>
 
                             {/* Image Previews with Status and Comparison */}
@@ -628,7 +760,6 @@
 
                             {/* Buttons */}
                             <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8">
-                                {/* Get Compression Advice Button - REMOVED */}
                                 <button
                                     onClick={handleCompressButtonClick}
                                     disabled={!canStartCompression}
@@ -637,7 +768,7 @@
                                         ${canStartCompression
                                             ? 'bg-gradient-to-r from-[#8A2BE2] to-[#4B0082] text-white shadow-lg hover:from-[#7D26C9] hover:to-[#3A0061] focus:outline-none focus:ring-4 focus:ring-[#8A2BE2] focus:ring-opacity-75 transform hover:-translate-y-1 animate-pulse-glow'
                                             : 'bg-gray-600 text-gray-400 cursor-not-allowed'}
-                                `}
+                                    `}
                                 >
                                     {isProcessing ? 'Processing...' : 'Compress'}
                                 </button>
@@ -649,7 +780,7 @@
                                         ${(uploadedFiles.length > 0 || isProcessing)
                                             ? 'bg-gray-700 text-white shadow-lg hover:bg-gray-800 focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-75 transform hover:-translate-y-1'
                                             : 'bg-gray-600 text-gray-400 cursor-not-allowed'}
-                                `}
+                                    `}
                                 >
                                     Reset
                                 </button>
@@ -672,6 +803,15 @@
                             <AdSenseAd client="ca-pub-XXXXXXXXXXXXXXXX" slot="XXXXXXXXXX" key={Date.now() + 3} />
                         </div>
                     )}
+
+                    {/* Visitor and Files Converted Counter at bottom-left */}
+                    <div className="fixed bottom-4 left-4 p-4 bg-[#2A2A4A] rounded-lg shadow-lg text-gray-200 text-sm border border-[#4A4A6A] z-40">
+                        <p className="font-semibold mb-1">Total Visitors: <span className="text-[#FFD700]">{visitorCount}</span></p>
+                        <p className="font-semibold">Files Converted: <span className="text-[#32CD32]">{totalFilesConverted}</span></p>
+                        {userId && (
+                            <p className="text-xs text-gray-500 mt-2 break-all">Your User ID: {userId}</p>
+                        )}
+                    </div>
 
                     {/* Zoom Modal */}
                     {zoomedImage && (
