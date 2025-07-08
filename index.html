@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JPEG Image Compressor</title>
+    <title>Universal Image Compressor</title>
     <!-- Google AdSense Script (MUST REPLACE ca-pub-XXXXXXXXXXXXXXXX with your actual Publisher ID) -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
     <!-- Tailwind CSS CDN -->
@@ -303,8 +303,8 @@
 
                 for (const file of Array.from(files)) {
                     // Check if the file type is supported for input
-                    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-                        warnings.push(`"${file.name}" is not a supported image format (JPEG, PNG, WebP) and will be skipped.`);
+                    if (!file.type.startsWith('image/')) { // Check if it's any image type
+                        warnings.push(`"${file.name}" is not a valid image file and will be skipped.`);
                     } else if (file.size > MAX_FILE_SIZE_BYTES) {
                         warnings.push(`"${file.name}" (${formatBytes(file.size)}) exceeds the ${MAX_FILE_SIZE_MB} MB limit and will be skipped.`);
                     } else {
@@ -679,11 +679,13 @@
                 const a = document.createElement('a');
                 a.href = url;
                 // Determine file extension based on outputFormat
-                let fileExtension = 'jpg';
+                let fileExtension = 'jpg'; // Default
                 if (outputFormat === 'image/png') fileExtension = 'png';
                 if (outputFormat === 'image/webp') fileExtension = 'webp';
 
-                a.download = `${fileName.replace(/\.(jpeg|jpg|png|webp)$/i, '')}_compressed.${fileExtension}`;
+                // Clean original file name to remove existing extension before adding new one
+                const baseFileName = fileName.replace(/\.(jpeg|jpg|png|webp|gif|bmp|tiff|svg)$/i, '');
+                a.download = `${baseFileName}_compressed.${fileExtension}`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -733,8 +735,13 @@
                 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
                 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
+                console.log("[Firebase Init] __app_id:", appId);
+                console.log("[Firebase Init] __firebase_config (parsed):", firebaseConfig);
+                console.log("[Firebase Init] __initial_auth_token (present):", !!initialAuthToken);
+
+
                 if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
-                    console.error("Firebase config is missing or empty. Cannot initialize Firebase.");
+                    console.error("[Firebase Init] Firebase config is missing or empty. Cannot initialize Firebase.");
                     return;
                 }
 
@@ -745,6 +752,7 @@
 
                     setDb(firestoreInstance);
                     setAuth(authInstance);
+                    console.log("[Firebase Init] Firebase app and services initialized.");
 
                     // Sign in with custom token if available, otherwise anonymously
                     const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
@@ -752,18 +760,22 @@
                             try {
                                 if (initialAuthToken) {
                                     await signInWithCustomToken(authInstance, initialAuthToken);
+                                    console.log("[Firebase Auth] Signed in with custom token.");
                                 } else {
                                     await signInAnonymously(authInstance);
+                                    console.log("[Firebase Auth] Signed in anonymously.");
                                 }
-                                console.log("Firebase authentication successful.");
                             } catch (error) {
-                                console.error("Firebase authentication failed:", error);
+                                console.error("[Firebase Auth] Firebase authentication failed:", error);
                             }
+                        } else {
+                            console.log("[Firebase Auth] User already signed in:", user.uid);
                         }
                         // Set userId from auth.currentUser.uid or generate a new UUID for anonymous users
                         const currentUserId = authInstance.currentUser?.uid || crypto.randomUUID();
                         setUserId(currentUserId);
                         setIsAuthReady(true); // Mark auth as ready
+                        console.log("[Firebase Auth] User ID set:", currentUserId);
 
                         // Check if this unique user has been counted before (persistently)
                         const hasVisitedKey = `visited_${appId}_${currentUserId}`;
@@ -771,18 +783,23 @@
                             const visitorCountDocRef = doc(firestoreInstance, `artifacts/${appId}/public/data/app_metadata/visitor_count`);
                             setDoc(visitorCountDocRef, { count: increment(1) }, { merge: true })
                                 .then(() => {
-                                    console.log("Visitor count incremented successfully.");
+                                    console.log("[Firestore] Visitor count incremented successfully.");
                                     localStorage.setItem(hasVisitedKey, 'true'); // Mark as visited persistently
                                 })
                                 .catch(error => {
-                                    console.error("Error incrementing visitor count:", error);
+                                    console.error("[Firestore] Error incrementing visitor count:", error);
                                 });
+                        } else {
+                            console.log("[Firestore] Visitor already counted for this user ID in localStorage.");
                         }
                     });
 
-                    return () => unsubscribe(); // Cleanup auth listener
+                    return () => {
+                        console.log("[Firebase Init] Cleaning up auth listener.");
+                        unsubscribe(); // Cleanup auth listener
+                    };
                 } catch (error) {
-                    console.error("Error initializing Firebase:", error);
+                    console.error("[Firebase Init] Error initializing Firebase (catch block):", error);
                 }
             }, []); // Run only once on component mount
 
@@ -792,17 +809,25 @@
                     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                     const visitorCountDocRef = doc(db, `artifacts/${appId}/public/data/app_metadata/visitor_count`);
 
+                    console.log("[Firestore] Setting up visitor count listener.");
                     const unsubscribe = onSnapshot(visitorCountDocRef, (docSnap) => {
                         if (docSnap.exists()) {
                             setVisitorCount(docSnap.data().count || 0);
+                            console.log("[Firestore] Visitor count updated:", docSnap.data().count);
                         } else {
                             setVisitorCount(0); // Document doesn't exist yet
+                            console.log("[Firestore] Visitor count document does not exist, setting to 0.");
                         }
                     }, (error) => {
-                        console.error("Error listening to visitor count:", error);
+                        console.error("[Firestore] Error listening to visitor count:", error);
                     });
 
-                    return () => unsubscribe(); // Cleanup snapshot listener
+                    return () => {
+                        console.log("[Firestore] Cleaning up visitor count listener.");
+                        unsubscribe(); // Cleanup snapshot listener
+                    };
+                } else {
+                    console.log("[Firestore] Not setting up visitor count listener: db or isAuthReady not available yet.");
                 }
             }, [db, isAuthReady]); // Re-run when db or isAuthReady changes
 
@@ -812,18 +837,26 @@
                     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                     const convertedCountDocRef = doc(db, `artifacts/${appId}/public/data/app_metadata/total_files_converted`);
 
+                    console.log("[Firestore] Setting up total files converted listener.");
                     // Listen for real-time updates to the total files converted count
                     const unsubscribe = onSnapshot(convertedCountDocRef, (docSnap) => {
                         if (docSnap.exists()) {
                             setTotalFilesConverted(docSnap.data().count || 0);
+                            console.log("[Firestore] Total files converted updated:", docSnap.data().count);
                         } else {
                             setTotalFilesConverted(0); // Document doesn't exist yet
+                            console.log("[Firestore] Total files converted document does not exist, setting to 0.");
                         }
                     }, (error) => {
-                        console.error("Error listening to total files converted count:", error);
+                        console.error("[Firestore] Error listening to total files converted count:", error);
                     });
 
-                    return () => unsubscribe(); // Cleanup snapshot listener
+                    return () => {
+                        console.log("[Firestore] Cleaning up total files converted listener.");
+                        unsubscribe(); // Cleanup snapshot listener
+                    };
+                } else {
+                    console.log("[Firestore] Not setting up total files converted listener: db or isAuthReady not available yet.");
                 }
             }, [db, isAuthReady]); // Re-run when db or isAuthReady changes
 
@@ -832,7 +865,7 @@
                 <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 lg:p-8 font-montserrat text-gray-200">
                     {/* Logo */}
                     <div className="absolute top-4 left-4 text-2xl font-bold z-50">
-                        <span className="logo-text">JPEG</span>
+                        <span className="logo-text">IMG</span>
                     </div>
 
                     {/* Top AdSense Ad Unit - Conditionally rendered */}
@@ -860,7 +893,7 @@
                         >
                             <h1 className="text-3xl sm:text-4xl lg:text-5xl app-title mb-6 drop-shadow-lg"
                                 style={{ background: `linear-gradient(to right, #00F0FF, #FF00FF, #FFFF00)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                                JPEG Image Compressor
+                                Universal Image Compressor
                             </h1>
 
                             {/* Drag and Drop Area */}
@@ -879,7 +912,7 @@
                                 onClick={handleDropAreaClick}
                             >
                                 <p className="text-lg sm:text-xl">
-                                    Drag & Drop JPEG, PNG, or WebP images here, or click to select files
+                                    Drag & Drop any image files here, or click to select files
                                 </p>
                                 <p className="text-sm mt-2">
                                     (Max file size: {MAX_FILE_SIZE_MB} MB per image)
@@ -887,7 +920,7 @@
                                 <input
                                     type="file"
                                     ref={fileInputRef}
-                                    accept="image/jpeg,image/png,image/webp"
+                                    accept="image/*"
                                     multiple
                                     onChange={handleFileInputChange}
                                     className="hidden"
