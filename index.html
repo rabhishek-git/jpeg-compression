@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-    
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Universal Image Compressor</title>
@@ -13,6 +10,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts - Montserrat (for general text and bold headings) -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <!-- JSZip CDN for creating zip files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         body {
             background-color: #000; /* Solid black base */
@@ -25,45 +24,36 @@
         .app-title {
             font-family: 'Montserrat', sans-serif;
             font-weight: 900; /* Extra bold */
-            /* This gradient will be overridden by inline style for dynamic color */
-            background: linear-gradient(to bottom, #FFD700, #B8860B, #DAA520);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            color: transparent;
-            text-shadow: 2px 2px 5px rgba(0,0,0,0.5); /* Subtle shadow for depth */
+            color: #E0E0E0; /* Solid white/light gray color */
+            text-shadow: 3px 3px 8px rgba(0,0,0,0.7); /* More pronounced shadow */
         }
         /* Logo text styling */
         .logo-text {
             font-family: 'Montserrat', sans-serif;
-            font-weight: 700;
-            background: linear-gradient(to right, #00F0FF, #FF00FF, #FFFF00); /* Vibrant gradient for logo */
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            color: transparent;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+            font-weight: 800; /* Bolder */
+            color: #E0E0E0; /* Solid white/light gray color */
+            text-shadow: 2px 2px 5px rgba(0,0,0,0.5); /* More pronounced shadow */
         }
 
         /* Custom styles for range input thumb */
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
-            width: 20px;
-            height: 20px;
+            width: 24px; /* Slightly larger */
+            height: 24px; /* Slightly larger */
             border-radius: 50%;
             background: var(--accent-color); /* Dynamic accent color */
             cursor: pointer;
-            box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.3);
+            box-shadow: 0 0 0 5px rgba(var(--accent-rgb), 0.5); /* More prominent glow */
             transition: background .15s ease-in-out, box-shadow .15s ease-in-out;
         }
         input[type="range"]::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
+            width: 24px; /* Slightly larger */
+            height: 24px; /* Slightly larger */
             border-radius: 50%;
             background: var(--accent-color); /* Dynamic accent color */
             cursor: pointer;
-            box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.3);
+            box-shadow: 0 0 0 5px rgba(var(--accent-rgb), 0.5); /* More prominent glow */
             transition: background .15s ease-in-out, box-shadow .15s ease-in-out;
         }
         input[type="range"]::-webkit-slider-thumb:hover {
@@ -88,16 +78,30 @@
         /* New CSS for continuous button animation */
         @keyframes pulse-glow {
             0%, 100% {
-                box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.7); /* Dynamic accent with opacity */
+                box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.8); /* Stronger glow */
                 transform: scale(1);
             }
             50% {
-                box-shadow: 0 0 0 8px rgba(var(--accent-rgb), 0); /* transparent */
-                transform: scale(1.02);
+                box-shadow: 0 0 0 10px rgba(var(--accent-rgb), 0); /* Larger, fading glow */
+                transform: scale(1.03); /* Slightly more pronounced pulse */
             }
         }
         .animate-pulse-glow {
             animation: pulse-glow 2s infinite ease-in-out;
+        }
+
+        /* Simplified Drag and Drop Area Styling */
+        .drag-drop-area-simple {
+            border: 4px solid var(--accent-color); /* Solid border with accent color */
+            background-color: #2A2A4A; /* Consistent background */
+            border-radius: 0.75rem; /* Rounded corners */
+            box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.5); /* Subtle initial glow */
+            transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out; /* Smooth transitions */
+        }
+
+        .drag-drop-area-simple.is-dragging {
+            box-shadow: 0 0 25px rgba(var(--accent-rgb), 0.8); /* More intense glow on drag */
+            border-color: var(--accent-color-dark); /* Slightly darker border on drag */
         }
     </style>
 </head>
@@ -182,6 +186,8 @@
             const [targetFileSizeInBytes, setTargetFileSizeInBytes] = useState(0); 
             // New state for output format: 'image/jpeg', 'image/png', 'image/webp'
             const [outputFormat, setOutputFormat] = useState('image/jpeg'); // Default to JPEG
+            // New state for zipping status
+            const [isZipping, setIsZipping] = useState(false);
 
             // Max number of files to "process" concurrently (simulated)
             const MAX_CONCURRENT_PROCESSES = 3;
@@ -231,7 +237,7 @@
                 // A linear mapping of canvasQuality to file size reduction.
                 // Let's assume 100 quality is ~95% of original size, and 10 quality is ~5% of original size.
                 const maxRatio = 0.95; // Max file size ratio (for 0% compression / 100 canvas quality)
-                const minRatio = 0.05; // Min file size ratio (for 100% compression / 10 canvas quality)
+                const minRatio = 0.05; // Min file size ratio (for 100% compression / 100 canvas quality)
 
                 // Normalize canvasQuality from [10, 100] to [0, 1]
                 const normalizedQuality = (canvasQuality - 10) / (100 - 10); // 0 for 10 quality, 1 for 100 quality
@@ -493,14 +499,6 @@
                     console.log("Generated compressed data URL for download:", compressedDataUrl.substring(0, 50) + "...");
                     currentFileStatus = 'completed';
 
-                    // Increment total files converted if db is available
-                    // Removed Firebase increment for total files converted
-                    // if (db) {
-                    //     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                    //     const convertedCountDocRef = doc(db, `artifacts/${appId}/public/data/app_metadata/total_files_converted`);
-                    //     await setDoc(convertedCountDocRef, { count: increment(1) }, { merge: true });
-                    // }
-
                 } catch (error) {
                     console.error("Error during canvas image processing for", fileToProcess.displayFileName, ":", error);
                     imageDimensions = { width: null, height: null }; // Reset dimensions on error
@@ -515,7 +513,7 @@
                         )
                     );
                 }
-            }, [compressionQuality, outputFormat]); // Removed db from dependencies
+            }, [compressionQuality, outputFormat]);
 
             // Effect to manage the processing queue
             useEffect(() => {
@@ -592,6 +590,7 @@
                 setCompressionMode('quality'); // Reset to default quality mode
                 setTargetFileSizeInBytes(0); // Reset target file size in bytes
                 setOutputFormat('image/jpeg'); // Reset output format
+                setIsZipping(false); // Reset zipping status
                 console.log("App state reset.");
             }, [uploadedFiles, setCssAccentColors]);
 
@@ -664,8 +663,60 @@
                 document.body.removeChild(a);
             }, [outputFormat]);
 
+            // Function to download all compressed files as a zip
+            const handleDownloadAllAsZip = useCallback(async () => {
+                setIsZipping(true);
+                const zip = new JSZip();
+                const completedFiles = uploadedFiles.filter(f => f.status === 'completed' && f.compressedPreviewUrl);
+
+                if (completedFiles.length === 0) {
+                    alert('No compressed files to download!');
+                    setIsZipping(false);
+                    return;
+                }
+
+                try {
+                    for (const file of completedFiles) {
+                        // Extract base64 data from Data URL
+                        const base64Data = file.compressedPreviewUrl.split(',')[1];
+                        // Determine file extension based on outputFormat
+                        let fileExtension = 'jpg';
+                        if (outputFormat === 'image/png') fileExtension = 'png';
+                        if (outputFormat === 'image/webp') fileExtension = 'webp';
+
+                        // Clean original file name to remove existing extension before adding new one
+                        const baseFileName = file.originalFileName.replace(/\.(jpeg|jpg|png|webp|gif|bmp|tiff|svg)$/i, '');
+                        const zipFileName = `${baseFileName}_compressed.${fileExtension}`;
+
+                        zip.file(zipFileName, base64Data, { base64: true });
+                    }
+
+                    const content = await zip.generateAsync({ type: "blob" });
+                    const blobUrl = URL.createObjectURL(content);
+
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = 'compressed_images.zip';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(blobUrl); // Clean up the Blob URL
+
+                } catch (error) {
+                    console.error("Error zipping files:", error);
+                    alert('Failed to create zip file. Please try again.');
+                } finally {
+                    setIsZipping(false);
+                }
+            }, [uploadedFiles, outputFormat]);
+
+
             // Determine if the compress button should be disabled
             const canStartCompression = uploadedFiles.filter(f => f.status === 'uploaded' || f.status === 'completed' || f.status === 'error').length > 0 && !isProcessing;
+
+            // Determine if the download all as zip button should be disabled
+            const canDownloadAllAsZip = uploadedFiles.filter(f => f.status === 'completed' && f.compressedPreviewUrl).length > 1 && !isZipping;
+
 
             // Function to get status color and icon
             const getStatusClasses = (status) => {
@@ -702,143 +753,6 @@
                 }
             };
 
-            // Removed Firebase Initialization and Authentication
-            /*
-            useEffect(() => {
-                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-                const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-                console.log("[Firebase Init] __app_id:", appId);
-                console.log("[Firebase Init] __firebase_config (parsed):", firebaseConfig);
-                console.log("[Firebase Init] __initial_auth_token (present):", !!initialAuthToken);
-
-
-                if (!firebaseConfig || Object.keys(firebaseConfig).length === 0) {
-                    console.error("[Firebase Init] Firebase config is missing or empty. Cannot initialize Firebase.");
-                    return;
-                }
-
-                try {
-                    const app = initializeApp(firebaseConfig);
-                    const authInstance = getAuth(app);
-                    const firestoreInstance = getFirestore(app);
-
-                    setDb(firestoreInstance);
-                    setAuth(authInstance);
-                    console.log("[Firebase Init] Firebase app and services initialized.");
-
-                    // Sign in with custom token if available, otherwise anonymously
-                    const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
-                        if (!user) {
-                            try {
-                                if (initialAuthToken) {
-                                    await signInWithCustomToken(authInstance, initialAuthToken);
-                                    console.log("[Firebase Auth] Signed in with custom token.");
-                                } else {
-                                    await signInAnonymously(authInstance);
-                                    console.log("[Firebase Auth] Signed in anonymously.");
-                                }
-                            } catch (error) {
-                                console.error("[Firebase Auth] Firebase authentication failed:", error);
-                            }
-                        } else {
-                            console.log("[Firebase Auth] User already signed in:", user.uid);
-                        }
-                        // Set userId from auth.currentUser.uid or generate a new UUID for anonymous users
-                        const currentUserId = authInstance.currentUser?.uid || crypto.randomUUID();
-                        setUserId(currentUserId);
-                        setIsAuthReady(true); // Mark auth as ready
-                        console.log("[Firebase Auth] User ID set:", currentUserId);
-
-                        // Check if this unique user has been counted before (persistently)
-                        const hasVisitedKey = `visited_${appId}_${currentUserId}`;
-                        if (!localStorage.getItem(hasVisitedKey)) {
-                            const visitorCountDocRef = doc(firestoreInstance, `artifacts/${appId}/public/data/app_metadata/visitor_count`);
-                            setDoc(visitorCountDocRef, { count: increment(1) }, { merge: true })
-                                .then(() => {
-                                    console.log("[Firestore] Visitor count incremented successfully.");
-                                    localStorage.setItem(hasVisitedKey, 'true'); // Mark as visited persistently
-                                })
-                                .catch(error => {
-                                    console.error("[Firestore] Error incrementing visitor count:", error);
-                                });
-                        } else {
-                            console.log("[Firestore] Visitor already counted for this user ID in localStorage.");
-                        }
-                    });
-
-                    return () => {
-                        console.log("[Firebase Init] Cleaning up auth listener.");
-                        unsubscribe(); // Cleanup auth listener
-                    };
-                } catch (error) {
-                    console.error("[Firebase Init] Error initializing Firebase (catch block):", error);
-                }
-            }, []); // Run only once on component mount
-            */
-
-            // Removed Visitor Counter Listener (real-time updates)
-            /*
-            useEffect(() => {
-                if (db && isAuthReady) {
-                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                    const visitorCountDocRef = doc(db, `artifacts/${appId}/public/data/app_metadata/visitor_count`);
-
-                    console.log("[Firestore] Setting up visitor count listener.");
-                    const unsubscribe = onSnapshot(visitorCountDocRef, (docSnap) => {
-                        if (docSnap.exists()) {
-                            setVisitorCount(docSnap.data().count || 0);
-                            console.log("[Firestore] Visitor count updated:", docSnap.data().count);
-                        } else {
-                            setVisitorCount(0); // Document doesn't exist yet
-                            console.log("[Firestore] Visitor count document does not exist, setting to 0.");
-                        }
-                    }, (error) => {
-                        console.error("[Firestore] Error listening to visitor count:", error);
-                    });
-
-                    return () => {
-                        console.log("[Firestore] Cleaning up visitor count listener.");
-                        unsubscribe(); // Cleanup snapshot listener
-                    };
-                } else {
-                    console.log("[Firestore] Not setting up visitor count listener: db or isAuthReady not available yet.");
-                }
-            }, [db, isAuthReady]); // Re-run when db or isAuthReady changes
-            */
-
-            // Removed Total Files Converted Counter Logic
-            /*
-            useEffect(() => {
-                if (db && isAuthReady) {
-                    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                    const convertedCountDocRef = doc(db, `artifacts/${appId}/public/data/app_metadata/total_files_converted`);
-
-                    console.log("[Firestore] Setting up total files converted listener.");
-                    // Listen for real-time updates to the total files converted count
-                    const unsubscribe = onSnapshot(convertedCountDocRef, (docSnap) => {
-                        if (docSnap.exists()) {
-                            setTotalFilesConverted(docSnap.data().count || 0);
-                            console.log("[Firestore] Total files converted updated:", docSnap.data().count);
-                        } else {
-                            setTotalFilesConverted(0); // Document doesn't exist yet
-                            console.log("[Firestore] Total files converted document does not exist, setting to 0.");
-                        }
-                    }, (error) => {
-                        console.error("[Firestore] Error listening to total files converted count:", error);
-                    });
-
-                    return () => {
-                        console.log("[Firestore] Cleaning up total files converted listener.");
-                        unsubscribe(); // Cleanup snapshot listener
-                    };
-                } else {
-                    console.log("[Firestore] Not setting up total files converted listener: db or isAuthReady not available yet.");
-                }
-            }, [db, isAuthReady]); // Re-run when db or isAuthReady changes
-            */
-
 
             return (
                 <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 lg:p-8 font-montserrat text-gray-200">
@@ -851,7 +765,7 @@
                     {compressionInitiated && (
                         <div className="w-full max-w-full mx-auto mb-8 p-4 bg-[#1A1A2E] rounded-xl shadow-lg text-center border border-[#2A2A4A] max-h-24 overflow-hidden opacity-60">
                             <p className="text-xs italic text-gray-500 mb-1">Advertisement</p>
-                            <AdSenseAd client="ca-pub-6134448703848494" slot="6134448703848494" key={Date.now()} />
+                            <AdSenseAd client="ca-pub-6134448703848494" slot="XXXXXXXXXX" key={Date.now()} />
                         </div>
                     )}
 
@@ -861,29 +775,25 @@
                         {compressionInitiated && (
                             <div className="hidden lg:block w-full lg:w-1/4 max-w-xs p-4 bg-[#1A1A2E] rounded-xl shadow-lg text-center border border-[#2A2A4A] max-h-full overflow-hidden opacity-60">
                                 <p className="text-xs italic text-gray-500 mb-1">Advertisement</p>
-                                <AdSenseAd client="ca-pub-6134448703848494" slot="6134448703848494" key={Date.now() + 1} />
+                                <AdSenseAd client="ca-pub-6134448703848494" slot="XXXXXXXXXX" key={Date.now() + 1} />
                             </div>
                         )}
 
                         {/* Main App Content */}
                         <div
-                            className="bg-[#1A1A2E] rounded-xl shadow-2xl p-6 sm:p-8 md:p-10 w-full lg:w-3/4 max-w-5xl text-center border-2 transition-all duration-500 ease-out"
-                            style={{ borderColor: dominantAccentColor.hex }}
+                            className="bg-[#1A1A2E] rounded-xl shadow-3xl p-6 sm:p-8 md:p-10 w-full lg:w-3/4 max-w-5xl text-center border-4 transition-all duration-500 ease-out"
+                            style={{ borderColor: dominantAccentColor.hex, boxShadow: `0 0 25px rgba(${dominantAccentColor.rgb}, 0.7)` }}
                         >
-                            <h1 className="text-3xl sm:text-4xl lg:text-5xl app-title mb-6 drop-shadow-lg"
-                                style={{ background: `linear-gradient(to right, #00F0FF, #FF00FF, #FFFF00)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            <h1 className="text-3xl sm:text-4xl lg:text-5xl app-title mb-6 drop-shadow-lg">
                                 Universal Image Compressor
                             </h1>
 
                             {/* Drag and Drop Area */}
                             <div
                                 className={`
-                                    border-4 border-dashed rounded-xl p-8 sm:p-12 mb-8 cursor-pointer transition-all duration-300 ease-in-out
-                                    ${isDragging
-                                        ? 'bg-[#2A1A0A] shadow-lg text-gray-100'
-                                        : 'bg-[#2A2A4A] text-gray-300 hover:bg-[#3A3A5A]'}
+                                    border-6 rounded-xl p-8 sm:p-12 mb-8 cursor-pointer transition-all duration-300 ease-in-out drag-drop-area-simple
+                                    ${isDragging ? 'is-dragging' : ''}
                                 `}
-                                style={{ borderColor: isDragging ? dominantAccentColor.hex : '#4A4A6A' }}
                                 onDragEnter={handleDragEnter}
                                 onDragLeave={handleDragLeave}
                                 onDragOver={handleDragOver}
@@ -1000,16 +910,16 @@
                                 )}
                             </div>
 
-                            {/* Image Previews with Status and Comparison */}
+                            {/* Image Previews with Status and Download Link */}
                             {uploadedFiles.length > 0 && (
                                 <div className="mb-8 p-4 border border-[#4A4A6A] rounded-lg bg-[#2A2A4A] max-h-[80vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 shadow-inner justify-items-center">
                                     {uploadedFiles.map((item) => (
-                                        <div key={item.id} className="relative flex flex-col items-center p-3 border-2 rounded-xl bg-gradient-to-br from-[#3A3A5A] to-[#2A2A4A] shadow-xl transform hover:scale-105 hover:shadow-2xl transition-all duration-300 ease-in-out"
-                                            style={{ borderColor: dominantAccentColor.hex, '--tw-shadow-color': dominantAccentColor.hex, boxShadow: `0 0 10px rgba(${dominantAccentColor.rgb}, 0.5)` }}>
+                                        <div key={item.id} className="relative flex flex-col items-center p-3 border-3 rounded-xl bg-gradient-to-br from-[#3A3A5A] to-[#2A2A4A] shadow-2xl transform hover:scale-105 hover:shadow-3xl transition-all duration-300 ease-in-out"
+                                            style={{ borderColor: dominantAccentColor.hex, '--tw-shadow-color': dominantAccentColor.hex, boxShadow: `0 0 15px rgba(${dominantAccentColor.rgb}, 0.8)` }}>
                                             {/* Remove Button */}
                                             <button
                                                 onClick={() => handleRemoveImage(item.id)}
-                                                className="absolute top-2 right-2 bg-red-700 text-white rounded-full h-6 w-6 flex items-center justify-center text-sm font-bold hover:bg-red-800 transition-colors duration-200"
+                                                className="absolute top-2 right-2 bg-red-700 text-white rounded-full h-7 w-7 flex items-center justify-center text-base font-bold hover:bg-red-800 transition-colors duration-200"
                                                 title="Remove image"
                                             >
                                                 &times;
@@ -1025,9 +935,9 @@
                                                 </p>
                                             )}
 
-                                            <div className="flex flex-col sm:flex-row justify-around w-full gap-2"> {/* Changed to flex-col for better stacking */}
+                                            <div className="flex flex-col items-center w-full"> {/* Changed to flex-col for better stacking */}
                                                 {/* Original Image */}
-                                                <div className="flex flex-col items-center w-full sm:w-1/2 mb-4 sm:mb-0"> {/* Added margin-bottom for spacing */}
+                                                <div className="flex flex-col items-center w-full mb-4"> {/* Added margin-bottom for spacing */}
                                                     <p className="text-xs text-gray-400 mb-1">Original</p>
                                                     <img
                                                         src={item.previewUrl}
@@ -1038,50 +948,34 @@
                                                     <p className="text-xs text-gray-300 mt-1">{formatBytes(item.originalSize)}</p>
                                                 </div>
 
-                                                {/* Compressed File Info & Download - Conditionally rendered */}
-                                                {/* This entire div is only rendered if compressionInitiated is true */}
-                                                {compressionInitiated && (
-                                                    <div className="flex flex-col items-center w-full sm:w-1/2">
-                                                        {item.status === 'completed' && item.compressedSize !== null && item.compressedPreviewUrl !== null ? (
-                                                            <>
-                                                                <p className="text-xs text-gray-400 mb-1">Compressed</p>
-                                                                <img
-                                                                    src={item.compressedPreviewUrl}
-                                                                    alt={`Compressed ${item.displayFileName}`}
-                                                                    className="w-40 h-40 object-cover rounded-md border border-[#4A4A6A] cursor-pointer shadow-md"
-                                                                    onClick={() => openZoomModal(item.compressedPreviewUrl, item.displayFileName, 'compressed')}
-                                                                />
-                                                                <p className="text-xs text-green-400 font-bold mt-1">Saved: {(((item.originalSize - item.compressedSize) / item.originalSize) * 100).toFixed(0)}%</p>
-                                                                <p className="text-xs font-semibold mt-1" style={{ color: dominantAccentColor.hex }}>
-                                                                    Quality: {compressionQuality}%
-                                                                </p>
-                                                                <button
-                                                                    onClick={() => handleDownload(item.compressedPreviewUrl, item.originalFileName)}
-                                                                    className="mt-2 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-[var(--accent-color)] to-[var(--accent-color-dark)] hover:from-[var(--accent-color-dark)] hover:to-[var(--accent-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--accent-color)] transition-all duration-200 ease-in-out transform hover:scale-105"
-                                                                >
-                                                                    Download Compressed File
-                                                                </button>
-                                                            </>
-                                                        ) : item.status === 'error' ? (
-                                                            <div className="w-full h-full flex flex-col items-center justify-center text-red-500 text-center text-xs">
-                                                                <p>Error processing.</p>
-                                                                <div className="w-40 h-40 flex items-center justify-center text-gray-500 border border-[#4A4A6A] rounded-md mt-1">
-                                                                    <span className="text-3xl">🚫</span>
-                                                                </div>
+                                                {/* Download Button - Conditionally rendered */}
+                                                {compressionInitiated && item.status === 'completed' && item.compressedPreviewUrl !== null ? (
+                                                    <button
+                                                        onClick={() => handleDownload(item.compressedPreviewUrl, item.originalFileName)}
+                                                        className="mt-2 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-lg text-white bg-gradient-to-r from-[var(--accent-color)] to-[var(--accent-color-dark)] hover:from-[var(--accent-color-dark)] hover:to-[var(--accent-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--accent-color)] transition-all duration-200 ease-in-out transform hover:scale-105"
+                                                    >
+                                                        Download Compressed File
+                                                    </button>
+                                                ) : compressionInitiated && item.status === 'error' ? (
+                                                    <div className="w-full h-full flex flex-col items-center justify-center text-red-500 text-center text-xs">
+                                                        <p>Error processing.</p>
+                                                        <div className="w-40 h-40 flex items-center justify-center text-gray-500 border border-[#4A4A6A] rounded-md mt-1">
+                                                            <span className="text-3xl">🚫</span>
+                                                        </div>
+                                                    </div>
+                                                ) : ( /* Shows placeholder for 'uploaded', 'pending', 'processing' states AFTER compression is initiated */
+                                                    compressionInitiated && ( // Only show placeholder if compression was initiated
+                                                        <div className="w-full h-full flex flex-col items-center justify-center">
+                                                            <p className="text-xs text-gray-400 mb-1">Compressed</p>
+                                                            <div className="w-40 h-40 flex items-center justify-center text-gray-500 border border-[#4A4A6A] rounded-md">
+                                                                {item.status === 'processing' ? (
+                                                                    <span className="w-8 h-8 border-4 border-[#FFD700] border-t-transparent rounded-full animate-spin-slow"></span>
+                                                                ) : (
+                                                                    <span className="text-3xl">⏳</span>
+                                                                )}
                                                             </div>
-                                                        ) : ( /* Shows placeholder for 'uploaded', 'pending', 'processing' states AFTER compression is initiated */
-                                                            <div className="w-full h-full flex flex-col items-center justify-center">
-                                                                <p className="text-xs text-gray-400 mb-1">Compressed</p>
-                                                                <div className="w-40 h-40 flex items-center justify-center text-gray-500 border border-[#4A4A6A] rounded-md">
-                                                                    {item.status === 'processing' ? (
-                                                                        <span className="w-8 h-8 border-4 border-[#FFD700] border-t-transparent rounded-full animate-spin-slow"></span>
-                                                                    ) : (
-                                                                        <span className="text-3xl">⏳</span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div >
+                                                        </div>
+                                                    )
                                                 )}
                                             </div >
                                         </div >
@@ -1125,13 +1019,27 @@
                                     Reset
                                 </button>
                             </div>
+                            {/* Download All as Zip Button */}
+                            {uploadedFiles.length > 1 && (uploadedFiles.filter(f => f.status === 'completed').length > 0) && (
+                                <button
+                                    onClick={handleDownloadAllAsZip}
+                                    disabled={!canDownloadAllAsZip}
+                                    className={`mt-4 py-3 px-8 rounded-lg text-lg font-semibold transition-all duration-300 ease-in-out w-full sm:w-auto
+                                        ${canDownloadAllAsZip
+                                            ? 'bg-gradient-to-r from-green-600 to-green-800 text-white shadow-lg hover:from-green-700 hover:to-green-900 focus:outline-none focus:ring-4 focus:ring-green-500 focus:ring-opacity-75 transform hover:-translate-y-1'
+                                            : 'bg-gray-600 text-gray-400 cursor-not-allowed'}
+                                        `}
+                                >
+                                    {isZipping ? 'Zipping...' : 'Download All as Zip'}
+                                </button>
+                            )}
                         </div>
 
                         {/* Right AdSense Ad Unit */}
                         {compressionInitiated && (
                             <div className="hidden lg:block w-full lg:w-1/4 max-w-xs p-4 bg-[#1A1A2E] rounded-xl shadow-lg text-center border border-[#2A2A4A] max-h-full overflow-hidden opacity-60">
                                 <p className="text-xs italic text-gray-500 mb-1">Advertisement</p>
-                                <AdSenseAd client="ca-pub-6134448703848494" slot="6134448703848494" key={Date.now() + 2} />
+                                <AdSenseAd client="ca-pub-6134448703848494" slot="XXXXXXXXXX" key={Date.now() + 2} />
                             </div>
                         )}
                     </div> {/* End of Main Content and Side Ads Wrapper */}
@@ -1140,21 +1048,9 @@
                     {compressionInitiated && (
                         <div className="mt-8 w-full max-w-full mx-auto p-4 bg-[#1A1A2E] rounded-xl shadow-lg text-center border border-[#2A2A4A] max-h-24 overflow-hidden opacity-60">
                             <p className="text-xs italic text-gray-500 mb-1">Advertisement</p>
-                            <AdSenseAd client="ca-pub-6134448703848494" slot="6134448703848494" key={Date.now() + 3} />
+                            <AdSenseAd client="ca-pub-6134448703848494" slot="XXXXXXXXXX" key={Date.now() + 3} />
                         </div>
                     )}
-
-                    {/* Visitor and Files Converted Counter at bottom-left */}
-                    {/* Removed Visitor and Files Converted Counter */}
-                    {/*
-                    <div className="fixed bottom-4 left-4 p-4 bg-[#2A2A4A] rounded-lg shadow-xl text-gray-200 text-sm border-2 border-[#5A5A7A] z-40">
-                        <p className="font-semibold mb-1">Total Visitors: <span className="text-[#FFD700]">{visitorCount}</span></p>
-                        <p className="font-semibold">Files Converted: <span className="text-[#32CD32]">{totalFilesConverted}</span></p>
-                        {userId && (
-                            <p className="text-xs text-gray-500 mt-2 break-all">Your User ID: {userId}</p>
-                        )}
-                    </div>
-                    */}
 
                     {/* Zoom Modal */}
                     {zoomedImage && (
