@@ -8,8 +8,8 @@
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts - Playfair Display (for headings) and Open Sans (for body) -->
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Open+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Google Fonts - Montserrat (for general text and bold headings) -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <!-- Firebase CDN Imports -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -32,11 +32,36 @@
     </script>
     <style>
         body {
-            font-family: 'Open Sans', sans-serif; /* Default body font */
+            background-color: #000; /* Solid black base */
+            background-image: url('data:image/svg+xml,%3Csvg width="100%25" height="100%25" xmlns="http://www.w3.org/2000/svg"%3E%3Cdefs%3E%3Cpattern id="smallGrid" width="10" height="10" patternUnits="userSpaceOnUse"%3E%3Cpath d="M 10 0 L 0 0 0 10" fill="none" stroke="%23222" stroke-width="0.5"/%3E%3C/pattern%3E%3Cpattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse"%3E%3Crect width="100" height="100" fill="url(%23smallGrid)"/%3E%3Cpath d="M 100 0 L 0 0 0 100" fill="none" stroke="%23444" stroke-width="1"/%3E%3C/pattern%3E%3C/defs%3E%3Crect width="100%25" height="100%25" fill="url(%23grid)"/%3E%3C/svg%3E');
+            background-size: cover;
+            font-family: 'Montserrat', sans-serif; /* New default font */
+            color: #E0E0E0; /* Light gray text */
         }
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Playfair Display', serif; /* Headings with a classy serif font */
+        /* Main title text styling */
+        .app-title {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 900; /* Extra bold */
+            /* This gradient will be overridden by inline style for dynamic color */
+            background: linear-gradient(to bottom, #FFD700, #B8860B, #DAA520);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 2px 2px 5px rgba(0,0,0,0.5); /* Subtle shadow for depth */
         }
+        /* Logo text styling */
+        .logo-text {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            background: linear-gradient(to right, #00F0FF, #FF00FF, #FFFF00); /* Vibrant gradient for logo */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        }
+
         /* Custom styles for range input thumb */
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
@@ -44,25 +69,28 @@
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: #A0522D; /* Sienna - a rich brown */
+            background: var(--accent-color); /* Dynamic accent color */
             cursor: pointer;
-            box-shadow: 0 0 0 4px rgba(160, 82, 45, 0.3);
+            box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.3);
             transition: background .15s ease-in-out, box-shadow .15s ease-in-out;
         }
         input[type="range"]::-moz-range-thumb {
             width: 20px;
             height: 20px;
             border-radius: 50%;
-            background: #A0522D; /* Sienna */
+            background: var(--accent-color); /* Dynamic accent color */
             cursor: pointer;
-            box-shadow: 0 0 0 4px rgba(160, 82, 45, 0.3);
+            box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.3);
             transition: background .15s ease-in-out, box-shadow .15s ease-in-out;
         }
         input[type="range"]::-webkit-slider-thumb:hover {
-            background: #8B4513; /* SaddleBrown - darker brown */
+            background: var(--accent-color-dark); /* Darker dynamic accent */
         }
         input[type="range"]::-moz-range-thumb:hover {
-            background: #8B4513; /* SaddleBrown */
+            background: var(--accent-color-dark); /* Darker dynamic accent */
+        }
+        input[type="range"] {
+            accent-color: var(--accent-color); /* Dynamic accent color for track fill */
         }
 
         /* Custom CSS for the spinning animation */
@@ -77,11 +105,11 @@
         /* New CSS for continuous button animation */
         @keyframes pulse-glow {
             0%, 100% {
-                box-shadow: 0 0 0 0 rgba(178, 133, 86, 0.7); /* Gold-like with opacity */
+                box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.7); /* Dynamic accent with opacity */
                 transform: scale(1);
             }
             50% {
-                box-shadow: 0 0 0 8px rgba(178, 133, 86, 0); /* transparent */
+                box-shadow: 0 0 0 8px rgba(var(--accent-rgb), 0); /* transparent */
                 transform: scale(1.02);
             }
         }
@@ -155,13 +183,25 @@
             const [uploadedFiles, setUploadedFiles] = useState([]);
             const [isDragging, setIsDragging] = useState(false);
             const fileInputRef = useRef(null);
-            const [compressionQuality, setCompressionQuality] = useState(80);
+            const [compressionQuality, setCompressionQuality] = useState(0); // 0% compression = no change (100% quality)
             // State to track if any files are currently being "processed"
             const [isProcessing, setIsProcessing] = useState(false);
             // New state for the zoomed image: { url: string, name: string, type: 'original' | 'compressed' }
             const [zoomedImage, setZoomedImage] = useState(null);
             // NEW: State to track if compression has been initiated at least once
             const [compressionInitiated, setCompressionInitiated] = useState(false);
+            // State for dynamic accent color
+            const [dominantAccentColor, setDominantAccentColor] = useState({ hex: '#4A90E2', rgb: '74, 144, 226' }); // Default blue
+            // New state for original file size to display in slider section
+            const [currentOriginalFileSize, setCurrentOriginalFileSize] = useState(null);
+            // New state for estimated compressed size
+            const [estimatedCompressedSize, setEstimatedCompressedSize] = useState(null);
+            // New state for compression mode: 'quality' or 'filesize'
+            const [compressionMode, setCompressionMode] = useState('quality'); // Default to quality mode
+            // New state for target file size in bytes when in 'filesize' mode
+            const [targetFileSizeInBytes, setTargetFileSizeInBytes] = useState(0); 
+            // New state for output format: 'image/jpeg', 'image/png', 'image/webp'
+            const [outputFormat, setOutputFormat] = useState('image/jpeg'); // Default to JPEG
 
             // Firebase states
             const [db, setDb] = useState(null);
@@ -187,25 +227,95 @@
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
             };
 
+            // Helper to set CSS variables for dynamic accent colors
+            const setCssAccentColors = useCallback((hex, rgb) => {
+                document.documentElement.style.setProperty('--accent-color', hex);
+                document.documentElement.style.setProperty('--accent-rgb', rgb);
+                // Calculate a slightly darker version for hover states
+                const r = parseInt(rgb.split(',')[0].trim());
+                const g = parseInt(rgb.split(',')[1].trim());
+                const b = parseInt(rgb.split(',')[2].trim());
+                const darkerHex = `#${((1 << 24) + (Math.floor(r * 0.8) << 16) + (Math.floor(g * 0.8) << 8) + (Math.floor(b * 0.8))).toString(16).slice(1).toUpperCase()}`;
+                document.documentElement.style.setProperty('--accent-color-dark', darkerHex);
+            }, []);
+
+            // Initial useEffect for setting default colors on load
+            useEffect(() => {
+                setCssAccentColors('#4A90E2', '74, 144, 226'); // Set initial default blue
+            }, [setCssAccentColors]);
+
+
+            // Function to calculate estimated compressed size based on user's compression percentage (0-100)
+            const calculateEstimatedCompressedSize = useCallback((originalSize, userCompressionPercentage) => {
+                if (originalSize === null) return null;
+                // Map userCompressionPercentage (0-100) to canvas quality (100-10)
+                // 0% compression -> 100 quality (least compression, largest file)
+                // 100% compression -> 10 quality (most compression, smallest file)
+                const canvasQuality = 100 - (userCompressionPercentage * 0.9); // Range 10 to 100
+
+                let simulatedCompressedSize;
+                // This is a simplified, approximate model for simulation.
+                // Actual JPEG compression is complex and depends on image content.
+                // A linear mapping of canvasQuality to file size reduction.
+                // Let's assume 100 quality is ~95% of original size, and 10 quality is ~5% of original size.
+                const maxRatio = 0.95; // Max file size ratio (for 0% compression / 100 canvas quality)
+                const minRatio = 0.05; // Min file size ratio (for 100% compression / 10 canvas quality)
+
+                // Normalize canvasQuality from [10, 100] to [0, 1]
+                const normalizedQuality = (canvasQuality - 10) / (100 - 10); // 0 for 10 quality, 1 for 100 quality
+
+                // Interpolate ratio based on normalized quality
+                const ratio = minRatio + (maxRatio - minRatio) * normalizedQuality;
+                simulatedCompressedSize = originalSize * ratio;
+
+                return Math.max(1000, simulatedCompressedSize); // Ensure a minimum size (1KB)
+            }, []);
+
+            // Function to estimate user's compression percentage (0-100) based on target file size in bytes
+            const estimateUserCompressionPercentageFromTargetSize = useCallback((originalSize, targetSizeInBytes) => {
+                if (originalSize === 0) return 0; // Avoid division by zero
+                const targetRatio = targetSizeInBytes / originalSize;
+
+                const minCanvasQuality = 10;
+                const maxCanvasQuality = 100;
+                const minRatio = 0.05;
+                const maxRatio = 0.95;
+
+                // Normalize targetRatio to [0, 1] based on our min/max simulated ratios
+                let normalizedTargetRatio = (targetRatio - minRatio) / (maxRatio - minRatio);
+                normalizedTargetRatio = Math.max(0, Math.min(1, normalizedTargetRatio));
+
+                // Interpolate canvasQuality from normalized ratio
+                const estimatedCanvasQuality = minCanvasQuality + (maxCanvasQuality - minCanvasQuality) * normalizedTargetRatio;
+
+                // Convert canvas quality back to user compression percentage
+                // userCompressionPercentage = (100 - estimatedCanvasQuality) / 0.9
+                const userCompressionPercentage = (100 - estimatedCanvasQuality) / 0.9;
+                return Math.round(Math.max(0, Math.min(100, userCompressionPercentage)));
+            }, []);
+
+
             // Handle files dropped or selected via input
-            const handleFiles = useCallback((files) => {
+            const handleFiles = useCallback(async (files) => {
                 const newValidFiles = [];
                 const warnings = [];
                 let imageCounter = uploadedFiles.length; // Start counter from current number of files
 
-                Array.from(files).forEach(file => {
-                    if (file.type !== 'image/jpeg') {
-                        warnings.push(`"${file.name}" is not a JPEG image and will be skipped.`);
+                for (const file of Array.from(files)) {
+                    // Check if the file type is supported for input
+                    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                        warnings.push(`"${file.name}" is not a supported image format (JPEG, PNG, WebP) and will be skipped.`);
                     } else if (file.size > MAX_FILE_SIZE_BYTES) {
                         warnings.push(`"${file.name}" (${formatBytes(file.size)}) exceeds the ${MAX_FILE_SIZE_MB} MB limit and will be skipped.`);
                     } else {
                         imageCounter++;
+                        const previewUrl = URL.createObjectURL(file);
                         newValidFiles.push({
                             id: file.name + '-' + file.size + '-' + Date.now(), // Unique ID for keying and tracking
                             originalFileName: file.name, // Store original file name
                             displayFileName: `Image ${imageCounter}`, // New: Display name for the image
                             file,
-                            previewUrl: URL.createObjectURL(file),
+                            previewUrl,
                             status: 'uploaded', // Initial status is now 'uploaded'
                             originalSize: file.size, // Store original size
                             compressedSize: null, // Will be set after "compression"
@@ -213,16 +323,39 @@
                             dimensions: { width: null, height: null }, // New: Store image dimensions
                         });
                     }
-                });
+                }
 
                 if (warnings.length > 0) {
-                    // Use a custom modal in a production app instead of alert
                     alert('Some files were skipped:\n' + warnings.join('\n'));
                 }
 
-                setUploadedFiles(prevFiles => [...prevFiles, ...newValidFiles]);
+                setUploadedFiles(prevFiles => {
+                    const currentTotalFiles = prevFiles.length;
+                    const updatedFiles = [...prevFiles, ...newValidFiles];
+
+                    // Set accent color to "call to action" gold if new files are added and no compression initiated
+                    if (currentTotalFiles === 0 && newValidFiles.length > 0 && !compressionInitiated) {
+                        setDominantAccentColor({ hex: '#FFD700', rgb: '255, 215, 0' });
+                        setCssAccentColors('#FFD700', '255, 215, 0');
+                    }
+
+                    // Update currentOriginalFileSize and estimatedCompressedSize based on the first file
+                    if (updatedFiles.length > 0) {
+                        const firstFileOriginalSize = updatedFiles[0].originalSize;
+                        setCurrentOriginalFileSize(firstFileOriginalSize);
+                        // Initialize targetFileSizeInBytes to original size for 'filesize' mode
+                        setTargetFileSizeInBytes(firstFileOriginalSize);
+                        // Calculate initial estimated compressed size based on current quality slider value (which is user's compression %)
+                        setEstimatedCompressedSize(calculateEstimatedCompressedSize(firstFileOriginalSize, compressionQuality));
+                    } else {
+                        setCurrentOriginalFileSize(null);
+                        setEstimatedCompressedSize(null);
+                        setTargetFileSizeInBytes(0);
+                    }
+                    return updatedFiles;
+                });
                 setCompressionInitiated(false); // Reset compression initiated state on new file uploads
-            }, [MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB, uploadedFiles.length]); // Add uploadedFiles.length to dependencies
+            }, [MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB, uploadedFiles.length, compressionQuality, compressionInitiated, setCssAccentColors, calculateEstimatedCompressedSize]);
 
             // Drag event handlers
             const handleDragEnter = useCallback((e) => {
@@ -268,10 +401,38 @@
                 fileInputRef.current?.click();
             }, []);
 
-            // Handle quality slider change
-            const handleQualityChange = useCallback((e) => {
-                setCompressionQuality(Number(e.target.value));
-            }, []);
+            // Handle slider change (for both quality and file size modes)
+            const handleSliderChange = useCallback((e) => {
+                const newValue = Number(e.target.value); // This is either userCompressionPercentage or targetFileSizeInBytes
+                
+                if (currentOriginalFileSize === null) return; // Cannot calculate without an original file
+
+                if (compressionMode === 'quality') {
+                    setCompressionQuality(newValue); // newValue is userCompressionPercentage (0-100)
+                    setEstimatedCompressedSize(calculateEstimatedCompressedSize(currentOriginalFileSize, newValue));
+                } else { // compressionMode === 'filesize'
+                    setTargetFileSizeInBytes(newValue); // newValue is targetFileSizeInBytes
+                    // Calculate the userCompressionPercentage based on the new target size
+                    const userCompPercent = estimateUserCompressionPercentageFromTargetSize(currentOriginalFileSize, newValue);
+                    setCompressionQuality(userCompPercent); // Update compressionQuality state, which will be used by processFile
+                    setEstimatedCompressedSize(newValue); // Estimated is now the target
+                }
+            }, [compressionMode, currentOriginalFileSize, calculateEstimatedCompressedSize, estimateUserCompressionPercentageFromTargetSize]);
+
+            // Function to handle output format change
+            const handleOutputFormatChange = useCallback((format) => {
+                setOutputFormat(format);
+                // When format changes, re-evaluate estimated size based on current quality or target size
+                if (currentOriginalFileSize !== null) {
+                    if (compressionMode === 'quality') {
+                        setEstimatedCompressedSize(calculateEstimatedCompressedSize(currentOriginalFileSize, compressionQuality));
+                    } else {
+                        setEstimatedCompressedSize(targetFileSizeInBytes); // Already set by targetFileSizeInBytes
+                        setCompressionQuality(estimateUserCompressionPercentageFromTargetSize(currentOriginalFileSize, targetFileSizeInBytes));
+                    }
+                }
+            }, [currentOriginalFileSize, compressionMode, compressionQuality, targetFileSizeInBytes, calculateEstimatedCompressedSize, estimateUserCompressionPercentageFromTargetSize]);
+
 
             // Function to simulate processing a single file
             const processFile = useCallback(async (fileToProcess) => {
@@ -282,7 +443,7 @@
                     )
                 );
 
-                console.log(`Simulating compression for: ${fileToProcess.displayFileName} (Quality: ${compressionQuality}%)`);
+                console.log(`Simulating compression for: ${fileToProcess.displayFileName} (User Compression: ${compressionQuality}%) to ${outputFormat}`);
 
                 // Simulate network request/backend processing time
                 await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1000)); // 1.5 to 2.5 seconds delay
@@ -300,14 +461,18 @@
                         reader.readAsArrayBuffer(fileToProcess.file);
                     });
 
-                    // Simulate compressed size based on quality and original size
-                    // This simulation is more realistic with actual file size from ArrayBuffer
+                    // Calculate canvasQuality from user's compressionQuality (0-100)
+                    // 0% comp -> 100 quality (least compression, largest file)
+                    // 100% comp -> 10 quality (most compression, smallest file)
+                    const canvasQuality = 100 - (compressionQuality * 0.9); // Range 10 to 100
+
+                    // Simulate compressed size based on canvasQuality (for display purposes)
                     const originalBytes = arrayBuffer.byteLength;
-                    if (compressionQuality <= 50) {
-                        simulatedCompressedSize = originalBytes * (0.05 + (compressionQuality / 50) * 0.15); // 5% to 20%
-                    } else {
-                        simulatedCompressedSize = originalBytes * (0.20 + ((compressionQuality - 50) / 50) * 0.75); // 20% to 95%
-                    }
+                    const maxRatio = 0.95;
+                    const minRatio = 0.05;
+                    const normalizedQuality = (canvasQuality - 10) / (100 - 10);
+                    const ratio = minRatio + (maxRatio - minRatio) * normalizedQuality;
+                    simulatedCompressedSize = originalBytes * ratio;
                     simulatedCompressedSize = Math.max(1000, simulatedCompressedSize); // Ensure a minimum size (1KB)
 
 
@@ -348,7 +513,11 @@
                     canvas.width = img.naturalWidth;
                     canvas.height = img.naturalHeight;
                     ctx.drawImage(img, 0, 0);
-                    compressedDataUrl = canvas.toDataURL('image/jpeg', compressionQuality / 100);
+                    
+                    // Use the calculated canvasQuality for actual compression for all formats
+                    // PNG quality parameter is often ignored or used differently by browsers, but we pass it for consistency.
+                    // WebP quality parameter behaves similarly to JPEG.
+                    compressedDataUrl = canvas.toDataURL(outputFormat, canvasQuality / 100);
                     console.log("Generated compressed data URL for download:", compressedDataUrl.substring(0, 50) + "...");
                     currentFileStatus = 'completed';
 
@@ -373,7 +542,7 @@
                         )
                     );
                 }
-            }, [compressionQuality, db]); // Added db to dependencies
+            }, [compressionQuality, db, outputFormat]); // Added outputFormat to dependencies
 
             // Effect to manage the processing queue
             useEffect(() => {
@@ -409,12 +578,16 @@
             // Handler for the main Compress button
             const handleCompressButtonClick = () => {
                 if (uploadedFiles.length === 0) {
-                    alert('Please upload JPEG images first.');
+                    alert('Please upload an image first.');
                     return;
                 }
 
                 // Set compressionInitiated to true when the button is pressed
                 setCompressionInitiated(true);
+
+                // Revert accent color back to default blue once compress button is pressed
+                setDominantAccentColor({ hex: '#4A90E2', rgb: '74, 144, 226' });
+                setCssAccentColors('#4A90E2', '74, 144, 226');
 
                 // Reset status of all files to 'pending' if they are not already
                 setUploadedFiles(prevFiles =>
@@ -437,10 +610,17 @@
                 });
                 setUploadedFiles([]);
                 setIsProcessing(false);
-                setCompressionQuality(80); // Reset quality to default
+                setCompressionQuality(0); // Reset quality to default (0% compression)
                 setCompressionInitiated(false); // Reset compression initiated state
+                setDominantAccentColor({ hex: '#4A90E2', rgb: '74, 144, 226' }); // Reset accent color to default blue
+                setCssAccentColors('#4A90E2', '74, 144, 226'); // Ensure CSS variables are reset
+                setCurrentOriginalFileSize(null); // Reset file size display
+                setEstimatedCompressedSize(null); // Reset estimated compressed size
+                setCompressionMode('quality'); // Reset to default quality mode
+                setTargetFileSizeInBytes(0); // Reset target file size in bytes
+                setOutputFormat('image/jpeg'); // Reset output format
                 console.log("App state reset.");
-            }, [uploadedFiles]);
+            }, [uploadedFiles, setCssAccentColors]);
 
             // New: Handle individual image removal
             const handleRemoveImage = useCallback((idToRemove) => {
@@ -448,11 +628,41 @@
                     const fileToRemove = prevFiles.find(f => f.id === idToRemove);
                     if (fileToRemove) {
                         URL.revokeObjectURL(fileToRemove.previewUrl);
-                        // No need to revoke compressedPreviewUrl here as it's a data URL.
                     }
-                    return prevFiles.filter(f => f.id !== idToRemove);
+                    const updatedFiles = prevFiles.filter(f => f.id !== idToRemove);
+                    
+                    // If no files left, reset to default accent color and file size
+                    if (updatedFiles.length === 0) {
+                        setDominantAccentColor({ hex: '#4A90E2', rgb: '74, 144, 226' });
+                        setCssAccentColors('#4A90E2', '74, 144, 226');
+                        setCurrentOriginalFileSize(null);
+                        setEstimatedCompressedSize(null);
+                        setTargetFileSizeInBytes(0);
+                    } else {
+                        // Update currentOriginalFileSize and estimatedCompressedSize to the new first file
+                        const newFirstFileOriginalSize = updatedFiles[0].originalSize;
+                        setCurrentOriginalFileSize(newFirstFileOriginalSize);
+                        if (compressionMode === 'quality') {
+                            setEstimatedCompressedSize(calculateEstimatedCompressedSize(newFirstFileOriginalSize, compressionQuality));
+                        } else { // filesize mode
+                            // Recalculate targetFileSizeInBytes relative to the new first image's size
+                            const newTargetSize = newFirstFileOriginalSize * (targetFileSizeInBytes / (currentOriginalFileSize || 1));
+                            setTargetFileSizeInBytes(newTargetSize);
+                            const userCompPercent = estimateUserCompressionPercentageFromTargetSize(newFirstFileOriginalSize, newTargetSize);
+                            setCompressionQuality(userCompPercent);
+                            setEstimatedCompressedSize(newTargetSize);
+                        }
+
+                        // If there are still uploaded files but compression hasn't been initiated, keep the "call to action" color
+                        if (!compressionInitiated) {
+                            setDominantAccentColor({ hex: '#FFD700', rgb: '255, 215, 0' });
+                            setCssAccentColors('#FFD700', '255, 215, 0');
+                        }
+                    }
+                    return updatedFiles;
                 });
-            }, []);
+            }, [setCssAccentColors, compressionInitiated, compressionMode, compressionQuality, targetFileSizeInBytes, currentOriginalFileSize, calculateEstimatedCompressedSize, estimateUserCompressionPercentageFromTargetSize]);
+
 
             // Handle opening the zoom modal (still useful for original image)
             const openZoomModal = useCallback((url, name, type) => {
@@ -468,11 +678,16 @@
             const handleDownload = useCallback((url, fileName) => {
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = fileName;
+                // Determine file extension based on outputFormat
+                let fileExtension = 'jpg';
+                if (outputFormat === 'image/png') fileExtension = 'png';
+                if (outputFormat === 'image/webp') fileExtension = 'webp';
+
+                a.download = `${fileName.replace(/\.(jpeg|jpg|png|webp)$/i, '')}_compressed.${fileExtension}`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-            }, []);
+            }, [outputFormat]);
 
             // Determine if the compress button should be disabled
             const canStartCompression = uploadedFiles.filter(f => f.status === 'uploaded' || f.status === 'completed' || f.status === 'error').length > 0 && !isProcessing;
@@ -614,11 +829,16 @@
 
 
             return (
-                <div className="min-h-screen bg-gradient-to-br from-[#1A1A2E] via-[#0A0A1A] to-[#1A1A2E] flex flex-col items-center p-4 sm:p-6 lg:p-8 font-open-sans text-gray-200">
+                <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 lg:p-8 font-montserrat text-gray-200">
+                    {/* Logo */}
+                    <div className="absolute top-4 left-4 text-2xl font-bold z-50">
+                        <span className="logo-text">JPEG</span>
+                    </div>
+
                     {/* Top AdSense Ad Unit - Conditionally rendered */}
                     {compressionInitiated && (
-                        <div className="w-full max-w-full mx-auto mb-8 p-4 bg-[#1A1A2E] rounded-xl shadow-lg text-center border border-[#2A2A4A] max-h-24 overflow-hidden">
-                            <p className="text-sm text-gray-400 mb-2">Advertisement</p>
+                        <div className="w-full max-w-full mx-auto mb-8 p-4 bg-[#1A1A2E] rounded-xl shadow-lg text-center border border-[#2A2A4A] max-h-24 overflow-hidden opacity-60">
+                            <p className="text-xs italic text-gray-500 mb-1">Advertisement</p>
                             <AdSenseAd client="ca-pub-XXXXXXXXXXXXXXXX" slot="XXXXXXXXXX" key={Date.now()} />
                         </div>
                     )}
@@ -627,15 +847,19 @@
                     <div className="flex flex-col lg:flex-row lg:items-start lg:justify-center w-full max-w-6xl gap-8">
                         {/* Left AdSense Ad Unit */}
                         {compressionInitiated && (
-                            <div className="hidden lg:block w-full lg:w-1/4 max-w-xs p-4 bg-[#1A1A2E] rounded-xl shadow-lg text-center border border-[#2A2A4A] max-h-full overflow-hidden">
-                                <p className="text-sm text-gray-400 mb-2">Advertisement</p>
+                            <div className="hidden lg:block w-full lg:w-1/4 max-w-xs p-4 bg-[#1A1A2E] rounded-xl shadow-lg text-center border border-[#2A2A4A] max-h-full overflow-hidden opacity-60">
+                                <p className="text-xs italic text-gray-500 mb-1">Advertisement</p>
                                 <AdSenseAd client="ca-pub-XXXXXXXXXXXXXXXX" slot="XXXXXXXXXX" key={Date.now() + 1} />
                             </div>
                         )}
 
                         {/* Main App Content */}
-                        <div className="bg-[#1A1A2E] rounded-xl shadow-2xl p-6 sm:p-8 md:p-10 w-full lg:w-3/4 max-w-5xl text-center border border-[#2A2A4A] transform rotate-3 scale-95 transition-transform duration-500 ease-out hover:rotate-0 hover:scale-100">
-                            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-playfair-display font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#FFD700] via-[#B8860B] to-[#DAA520] mb-6 drop-shadow-lg">
+                        <div
+                            className="bg-[#1A1A2E] rounded-xl shadow-2xl p-6 sm:p-8 md:p-10 w-full lg:w-3/4 max-w-5xl text-center border-2 transition-all duration-500 ease-out"
+                            style={{ borderColor: dominantAccentColor.hex }}
+                        >
+                            <h1 className="text-3xl sm:text-4xl lg:text-5xl app-title mb-6 drop-shadow-lg"
+                                style={{ background: `linear-gradient(to right, #00F0FF, #FF00FF, #FFFF00)`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                                 JPEG Image Compressor
                             </h1>
 
@@ -644,9 +868,10 @@
                                 className={`
                                     border-4 border-dashed rounded-xl p-8 sm:p-12 mb-8 cursor-pointer transition-all duration-300 ease-in-out
                                     ${isDragging
-                                        ? 'border-[#B8860B] bg-[#2A1A0A] shadow-lg text-gray-100' /* Gold-like border, dark brown background */
-                                        : 'border-[#4A4A6A] bg-[#2A2A4A] text-gray-300 hover:border-[#B8860B] hover:bg-[#3A3A5A]'}
+                                        ? 'bg-[#2A1A0A] shadow-lg text-gray-100'
+                                        : 'bg-[#2A2A4A] text-gray-300 hover:bg-[#3A3A5A]'}
                                 `}
+                                style={{ borderColor: isDragging ? dominantAccentColor.hex : '#4A4A6A' }}
                                 onDragEnter={handleDragEnter}
                                 onDragLeave={handleDragLeave}
                                 onDragOver={handleDragOver}
@@ -654,7 +879,7 @@
                                 onClick={handleDropAreaClick}
                             >
                                 <p className="text-lg sm:text-xl">
-                                    Drag & Drop JPEG images here, or click to select files
+                                    Drag & Drop JPEG, PNG, or WebP images here, or click to select files
                                 </p>
                                 <p className="text-sm mt-2">
                                     (Max file size: {MAX_FILE_SIZE_MB} MB per image)
@@ -662,38 +887,113 @@
                                 <input
                                     type="file"
                                     ref={fileInputRef}
-                                    accept="image/jpeg"
+                                    accept="image/jpeg,image/png,image/webp"
                                     multiple
                                     onChange={handleFileInputChange}
                                     className="hidden"
                                 />
                             </div>
 
-                            {/* Compression Quality Setting */}
+                            {/* Compression Settings */}
                             <div className="mb-8 p-4 bg-[#2A2A4A] rounded-lg border border-[#4A4A6A]">
+                                {/* Output Format Selection */}
+                                <div className="mb-4">
+                                    <span className="block text-lg font-semibold text-gray-200 mb-2">Output Format:</span>
+                                    <div className="flex justify-center space-x-2">
+                                        <button
+                                            onClick={() => handleOutputFormatChange('image/jpeg')}
+                                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200
+                                                ${outputFormat === 'image/jpeg' ? 'bg-[var(--accent-color)] text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                        >
+                                            JPEG
+                                        </button>
+                                        <button
+                                            onClick={() => handleOutputFormatChange('image/png')}
+                                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200
+                                                ${outputFormat === 'image/png' ? 'bg-[var(--accent-color)] text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                        >
+                                            PNG
+                                        </button>
+                                        <button
+                                            onClick={() => handleOutputFormatChange('image/webp')}
+                                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-200
+                                                ${outputFormat === 'image/webp' ? 'bg-[var(--accent-color)] text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                        >
+                                            WebP
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Toggle between Quality and File Size modes */}
+                                <div className="flex justify-center mb-4">
+                                    <button
+                                        onClick={() => setCompressionMode('quality')}
+                                        className={`px-4 py-2 rounded-l-lg text-sm font-semibold transition-colors duration-200
+                                            ${compressionMode === 'quality' ? 'bg-[var(--accent-color)] text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                    >
+                                        Adjust by Quality
+                                    </button>
+                                    <button
+                                        onClick={() => setCompressionMode('filesize')}
+                                        className={`px-4 py-2 rounded-r-lg text-sm font-semibold transition-colors duration-200
+                                            ${compressionMode === 'filesize' ? 'bg-[var(--accent-color)] text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                                        disabled={currentOriginalFileSize === null}
+                                    >
+                                        Adjust by File Size
+                                    </button>
+                                </div>
+
                                 <label htmlFor="quality-slider" className="block text-lg font-semibold text-gray-200 mb-3">
-                                    Compression Quality: <span className="text-[#FFD700]">{compressionQuality}%</span>
+                                    {compressionMode === 'quality' ? (
+                                        <>
+                                            Compression Percentage: <span style={{ color: dominantAccentColor.hex }}>{compressionQuality}%</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            Target File Size: <span style={{ color: dominantAccentColor.hex }}>{currentOriginalFileSize ? formatBytes(targetFileSizeInBytes) : 'N/A'}</span>
+                                        </>
+                                    )}
                                 </label>
                                 <input
                                     type="range"
                                     id="quality-slider"
-                                    min="10"
-                                    max="100"
-                                    value={compressionQuality}
-                                    onChange={handleQualityChange}
-                                    className="w-full h-2 bg-[#4A4A6A] rounded-lg appearance-none cursor-pointer accent-[#B8860B]"
+                                    min={compressionMode === 'quality' ? "0" : (currentOriginalFileSize ? Math.round(currentOriginalFileSize * 0.05) : "0")} /* 0% compression to 100% compression */
+                                    max={compressionMode === 'quality' ? "100" : (currentOriginalFileSize ? currentOriginalFileSize : "100")} /* 100% compression */
+                                    step={compressionMode === 'quality' ? "1" : (currentOriginalFileSize ? Math.max(1, Math.round(currentOriginalFileSize * 0.005)) : "1")} /* 1% for quality, dynamic for size */
+                                    value={compressionMode === 'quality' ? compressionQuality : targetFileSizeInBytes}
+                                    onChange={handleSliderChange}
+                                    className="w-full h-2 bg-[#4A4A6A] rounded-lg appearance-none cursor-pointer"
+                                    style={{ accentColor: dominantAccentColor.hex }}
                                 />
                                 <div className="flex justify-between text-sm text-gray-400 mt-2 px-1">
-                                    <span>Low (10%)</span>
-                                    <span>High (100%)</span>
+                                    <span>{compressionMode === 'quality' ? 'Less Compression (0%)' : 'Smaller File (5%)'}</span>
+                                    <span>{compressionMode === 'quality' ? 'More Compression (100%)' : 'Larger File (100%)'}</span>
                                 </div>
+
+                                {/* File size information */}
+                                {currentOriginalFileSize !== null && (
+                                    <div className="text-sm text-gray-400 mt-4 px-1">
+                                        <p className="mb-1">Original file size: {formatBytes(currentOriginalFileSize)}</p>
+                                        {compressionMode === 'quality' && estimatedCompressedSize !== null && (
+                                            <p style={{ color: dominantAccentColor.hex }}>
+                                                Estimated Compressed file size: {formatBytes(estimatedCompressedSize)}
+                                            </p>
+                                        )}
+                                        {compressionMode === 'filesize' && estimatedCompressedSize !== null && (
+                                            <p style={{ color: dominantAccentColor.hex }}>
+                                                Estimated Quality: {estimateUserCompressionPercentageFromTargetSize(currentOriginalFileSize, estimatedCompressedSize)}% Compression
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Image Previews with Status and Comparison */}
                             {uploadedFiles.length > 0 && (
                                 <div className="mb-8 p-4 border border-[#4A4A6A] rounded-lg bg-[#2A2A4A] max-h-[80vh] overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 shadow-inner justify-items-center">
                                     {uploadedFiles.map((item) => (
-                                        <div key={item.id} className="relative flex flex-col items-center p-3 border-2 border-[#5A5A7A] rounded-xl bg-gradient-to-br from-[#3A3A5A] to-[#2A2A4A] shadow-xl transform hover:scale-105 hover:shadow-2xl hover:border-[#B8860B] transition-all duration-300 ease-in-out">
+                                        <div key={item.id} className="relative flex flex-col items-center p-3 border-2 rounded-xl bg-gradient-to-br from-[#3A3A5A] to-[#2A2A4A] shadow-xl transform hover:scale-105 hover:shadow-2xl transition-all duration-300 ease-in-out"
+                                            style={{ borderColor: dominantAccentColor.hex, '--tw-shadow-color': dominantAccentColor.hex, boxShadow: `0 0 10px rgba(${dominantAccentColor.rgb}, 0.5)` }}>
                                             {/* Remove Button */}
                                             <button
                                                 onClick={() => handleRemoveImage(item.id)}
@@ -713,9 +1013,9 @@
                                                 </p>
                                             )}
 
-                                            <div className="flex justify-around w-full gap-2">
+                                            <div className="flex flex-col sm:flex-row justify-around w-full gap-2"> {/* Changed to flex-col for better stacking */}
                                                 {/* Original Image */}
-                                                <div className="flex flex-col items-center w-1/2">
+                                                <div className="flex flex-col items-center w-full sm:w-1/2 mb-4 sm:mb-0"> {/* Added margin-bottom for spacing */}
                                                     <p className="text-xs text-gray-400 mb-1">Original</p>
                                                     <img
                                                         src={item.previewUrl}
@@ -727,32 +1027,46 @@
                                                 </div>
 
                                                 {/* Compressed File Info & Download - Conditionally rendered */}
+                                                {/* This entire div is only rendered if compressionInitiated is true */}
                                                 {compressionInitiated && (
-                                                    <div className="flex flex-col items-center w-1/2">
+                                                    <div className="flex flex-col items-center w-full sm:w-1/2">
                                                         {item.status === 'completed' && item.compressedSize !== null && item.compressedPreviewUrl !== null ? (
-                                                            <> {/* Added Fragment here */}
-                                                                <p className="text-xs text-green-400 font-bold mt-1">{formatBytes(item.compressedSize)}</p>
-                                                                <p className="text-xs text-gray-400">
-                                                                    Saved: {(((item.originalSize - item.compressedSize) / item.originalSize) * 100).toFixed(0)}%
-                                                                </p>
-                                                                <p className="text-xs font-semibold text-[#FFD700] mt-1">
+                                                            <>
+                                                                <p className="text-xs text-gray-400 mb-1">Compressed</p>
+                                                                <img
+                                                                    src={item.compressedPreviewUrl}
+                                                                    alt={`Compressed ${item.displayFileName}`}
+                                                                    className="w-40 h-40 object-cover rounded-md border border-[#4A4A6A] cursor-pointer shadow-md"
+                                                                    onClick={() => openZoomModal(item.compressedPreviewUrl, item.displayFileName, 'compressed')}
+                                                                />
+                                                                <p className="text-xs text-green-400 font-bold mt-1">Saved: {(((item.originalSize - item.compressedSize) / item.originalSize) * 100).toFixed(0)}%</p>
+                                                                <p className="text-xs font-semibold mt-1" style={{ color: dominantAccentColor.hex }}>
                                                                     Quality: {compressionQuality}%
                                                                 </p>
                                                                 <button
-                                                                    onClick={() => handleDownload(item.compressedPreviewUrl, `compressed_${item.displayFileName}.jpg`)}
-                                                                    className="mt-2 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-[#B8860B] to-[#DAA520] hover:from-[#DAA520] hover:to-[#B8860B] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#B8860B] transition-all duration-200 ease-in-out transform hover:scale-105"
+                                                                    onClick={() => handleDownload(item.compressedPreviewUrl, item.originalFileName)}
+                                                                    className="mt-2 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-[var(--accent-color)] to-[var(--accent-color-dark)] hover:from-[var(--accent-color-dark)] hover:to-[var(--accent-color)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--accent-color)] transition-all duration-200 ease-in-out transform hover:scale-105"
                                                                 >
                                                                     Download Compressed File
                                                                 </button>
                                                             </>
-                                                        ) : item.status === 'error' ? ( // Only show error if status is explicitly error
-                                                            <div className="w-full flex flex-col items-center justify-center text-red-500 text-center text-xs">
-                                                                Error processing.
+                                                        ) : item.status === 'error' ? (
+                                                            <div className="w-full h-full flex flex-col items-center justify-center text-red-500 text-center text-xs">
+                                                                <p>Error processing.</p>
+                                                                <div className="w-40 h-40 flex items-center justify-center text-gray-500 border border-[#4A4A6A] rounded-md mt-1">
+                                                                    <span className="text-3xl">🚫</span>
+                                                                </div>
                                                             </div>
-                                                        ) : (
-                                                            // Show nothing for 'pending' or 'processing' states
-                                                            <div className="w-full h-full flex items-center justify-center">
-                                                                {/* Empty div to maintain layout space if needed, or just null */}
+                                                        ) : ( /* Shows placeholder for 'uploaded', 'pending', 'processing' states AFTER compression is initiated */
+                                                            <div className="w-full h-full flex flex-col items-center justify-center">
+                                                                <p className="text-xs text-gray-400 mb-1">Compressed</p>
+                                                                <div className="w-40 h-40 flex items-center justify-center text-gray-500 border border-[#4A4A6A] rounded-md">
+                                                                    {item.status === 'processing' ? (
+                                                                        <span className="w-8 h-8 border-4 border-[#FFD700] border-t-transparent rounded-full animate-spin-slow"></span>
+                                                                    ) : (
+                                                                        <span className="text-3xl">⏳</span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div >
@@ -779,9 +1093,10 @@
                                     className={`
                                         py-3 px-8 rounded-lg text-lg font-semibold transition-all duration-300 ease-in-out w-full sm:w-auto
                                         ${canStartCompression
-                                            ? 'bg-gradient-to-r from-[#B8860B] to-[#DAA520] text-white shadow-lg hover:from-[#DAA520] hover:to-[#B8860B] focus:outline-none focus:ring-4 focus:ring-[#B8860B] focus:ring-opacity-75 transform hover:-translate-y-1 animate-pulse-glow'
+                                            ? 'text-white shadow-lg focus:outline-none focus:ring-4 focus:ring-[var(--accent-color)] focus:ring-opacity-75 transform hover:-translate-y-1 animate-pulse-glow'
                                             : 'bg-gray-600 text-gray-400 cursor-not-allowed'}
-                                    `}
+                                        `}
+                                    style={{ background: `linear-gradient(to right, ${dominantAccentColor.hex}, var(--accent-color-dark))` }}
                                 >
                                     {isProcessing ? 'Processing...' : 'Compress'}
                                 </button>
@@ -793,7 +1108,7 @@
                                         ${(uploadedFiles.length > 0 || isProcessing)
                                             ? 'bg-gray-700 text-gray-200 shadow-lg hover:bg-gray-800 focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-75 transform hover:-translate-y-1'
                                             : 'bg-gray-600 text-gray-400 cursor-not-allowed'}
-                                    `}
+                                        `}
                                 >
                                     Reset
                                 </button>
@@ -802,8 +1117,8 @@
 
                         {/* Right AdSense Ad Unit */}
                         {compressionInitiated && (
-                            <div className="hidden lg:block w-full lg:w-1/4 max-w-xs p-4 bg-[#1A1A2E] rounded-xl shadow-lg text-center border border-[#2A2A4A] max-h-full overflow-hidden">
-                                <p className="text-sm text-gray-400 mb-2">Advertisement</p>
+                            <div className="hidden lg:block w-full lg:w-1/4 max-w-xs p-4 bg-[#1A1A2E] rounded-xl shadow-lg text-center border border-[#2A2A4A] max-h-full overflow-hidden opacity-60">
+                                <p className="text-xs italic text-gray-500 mb-1">Advertisement</p>
                                 <AdSenseAd client="ca-pub-XXXXXXXXXXXXXXXX" slot="XXXXXXXXXX" key={Date.now() + 2} />
                             </div>
                         )}
@@ -811,8 +1126,8 @@
 
                     {/* Bottom AdSense Ad Unit - Conditionally rendered */}
                     {compressionInitiated && (
-                        <div className="mt-8 w-full max-w-full mx-auto p-4 bg-[#1A1A2E] rounded-xl shadow-lg text-center border border-[#2A2A4A] max-h-24 overflow-hidden">
-                            <p className="text-sm text-gray-400 mb-2">Advertisement</p>
+                        <div className="mt-8 w-full max-w-full mx-auto p-4 bg-[#1A1A2E] rounded-xl shadow-lg text-center border border-[#2A2A4A] max-h-24 overflow-hidden opacity-60">
+                            <p className="text-xs italic text-gray-500 mb-1">Advertisement</p>
                             <AdSenseAd client="ca-pub-XXXXXXXXXXXXXXXX" slot="XXXXXXXXXX" key={Date.now() + 3} />
                         </div>
                     )}
@@ -840,7 +1155,7 @@
                                 >
                                     &times;
                                 </button>
-                                <h3 className="text-lg font-playfair-display font-semibold mb-3 text-gray-100">
+                                <h3 className="text-lg font-semibold mb-3 text-gray-100">
                                     {zoomedImage.name} ({zoomedImage.type === 'original' ? 'Original' : 'Compressed'})
                                 </h3>
                                 <img
