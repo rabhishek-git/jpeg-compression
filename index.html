@@ -10,26 +10,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts - Montserrat (for general text and bold headings) -->
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-    <!-- Firebase CDN Imports -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // Make Firebase modules globally accessible for the Babel script
-        window.firebase = {
-            initializeApp,
-            getAuth,
-            signInAnonymously,
-            signInWithCustomToken,
-            onAuthStateChanged,
-            getFirestore,
-            doc,
-            setDoc,
-            onSnapshot,
-            increment
-        };
-    </script>
     <style>
         body {
             background-color: #000; /* Solid black base */
@@ -131,9 +111,6 @@
         // Destructure React hooks from the global React object
         const { useState, useCallback, useEffect, useRef } = React;
 
-        // Destructure Firebase modules from the global window object
-        const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, doc, setDoc, onSnapshot, increment } = window.firebase;
-
         // AdSense Ad Component
         const AdSenseAd = ({ client, slot, format = 'auto', responsive = true }) => {
             const adRef = useRef(null); // Ref to the ins element
@@ -202,14 +179,6 @@
             const [targetFileSizeInBytes, setTargetFileSizeInBytes] = useState(0); 
             // New state for output format: 'image/jpeg', 'image/png', 'image/webp'
             const [outputFormat, setOutputFormat] = useState('image/jpeg'); // Default to JPEG
-
-            // Firebase states
-            const [db, setDb] = useState(null);
-            const [auth, setAuth] = useState(null);
-            const [userId, setUserId] = useState(null);
-            const [visitorCount, setVisitorCount] = useState(0);
-            const [totalFilesConverted, setTotalFilesConverted] = useState(0); // New state for converted files
-            const [isAuthReady, setIsAuthReady] = useState(false); // New state to track auth readiness
 
             // Max number of files to "process" concurrently (simulated)
             const MAX_CONCURRENT_PROCESSES = 3;
@@ -522,11 +491,12 @@
                     currentFileStatus = 'completed';
 
                     // Increment total files converted if db is available
-                    if (db) {
-                        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-                        const convertedCountDocRef = doc(db, `artifacts/${appId}/public/data/app_metadata/total_files_converted`);
-                        await setDoc(convertedCountDocRef, { count: increment(1) }, { merge: true });
-                    }
+                    // Removed Firebase increment for total files converted
+                    // if (db) {
+                    //     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                    //     const convertedCountDocRef = doc(db, `artifacts/${appId}/public/data/app_metadata/total_files_converted`);
+                    //     await setDoc(convertedCountDocRef, { count: increment(1) }, { merge: true });
+                    // }
 
                 } catch (error) {
                     console.error("Error during canvas image processing for", fileToProcess.displayFileName, ":", error);
@@ -542,7 +512,7 @@
                         )
                     );
                 }
-            }, [compressionQuality, db, outputFormat]); // Added outputFormat to dependencies
+            }, [compressionQuality, outputFormat]); // Removed db from dependencies
 
             // Effect to manage the processing queue
             useEffect(() => {
@@ -729,7 +699,8 @@
                 }
             };
 
-            // Firebase Initialization and Authentication
+            // Removed Firebase Initialization and Authentication
+            /*
             useEffect(() => {
                 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
                 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
@@ -802,8 +773,10 @@
                     console.error("[Firebase Init] Error initializing Firebase (catch block):", error);
                 }
             }, []); // Run only once on component mount
+            */
 
-            // Visitor Counter Listener (real-time updates)
+            // Removed Visitor Counter Listener (real-time updates)
+            /*
             useEffect(() => {
                 if (db && isAuthReady) {
                     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -830,8 +803,10 @@
                     console.log("[Firestore] Not setting up visitor count listener: db or isAuthReady not available yet.");
                 }
             }, [db, isAuthReady]); // Re-run when db or isAuthReady changes
+            */
 
-            // Total Files Converted Counter Logic
+            // Removed Total Files Converted Counter Logic
+            /*
             useEffect(() => {
                 if (db && isAuthReady) {
                     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -859,6 +834,7 @@
                     console.log("[Firestore] Not setting up total files converted listener: db or isAuthReady not available yet.");
                 }
             }, [db, isAuthReady]); // Re-run when db or isAuthReady changes
+            */
 
 
             return (
@@ -1166,6 +1142,8 @@
                     )}
 
                     {/* Visitor and Files Converted Counter at bottom-left */}
+                    {/* Removed Visitor and Files Converted Counter */}
+                    {/*
                     <div className="fixed bottom-4 left-4 p-4 bg-[#2A2A4A] rounded-lg shadow-xl text-gray-200 text-sm border-2 border-[#5A5A7A] z-40">
                         <p className="font-semibold mb-1">Total Visitors: <span className="text-[#FFD700]">{visitorCount}</span></p>
                         <p className="font-semibold">Files Converted: <span className="text-[#32CD32]">{totalFilesConverted}</span></p>
@@ -1173,6 +1151,7 @@
                             <p className="text-xs text-gray-500 mt-2 break-all">Your User ID: {userId}</p>
                         )}
                     </div>
+                    */}
 
                     {/* Zoom Modal */}
                     {zoomedImage && (
