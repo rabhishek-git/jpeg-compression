@@ -24,10 +24,21 @@
         .app-title {
             font-family: 'Montserrat', sans-serif;
             font-weight: 900; /* Extra bold */
-            color: #E0E0E0; /* Solid white/light gray color */
+            background: linear-gradient(to right, #00F0FF, #FF00FF, #FFFF00); /* Cyan, Magenta, Yellow */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
             text-shadow: 3px 3px 8px rgba(0,0,0,0.7); /* More pronounced shadow */
+            animation: text-gradient-animation 5s linear infinite alternate; /* New animation */
         }
-        /* Logo text styling */
+
+        @keyframes text-gradient-animation {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+        /* Logo text styling (for SVG fallback/conceptual) */
         .logo-text {
             font-family: 'Montserrat', sans-serif;
             font-weight: 800; /* Bolder */
@@ -97,11 +108,32 @@
             border-radius: 0.75rem; /* Rounded corners */
             box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.5); /* Subtle initial glow */
             transition: box-shadow 0.3s ease-in-out, border-color 0.3s ease-in-out; /* Smooth transitions */
+            animation: drag-drop-glow 2s ease-in-out infinite alternate; /* Pulsating glow animation */
+        }
+
+        @keyframes drag-drop-glow {
+            0%, 100% {
+                box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.5);
+            }
+            50% {
+                box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.8);
+            }
         }
 
         .drag-drop-area-simple.is-dragging {
             box-shadow: 0 0 25px rgba(var(--accent-rgb), 0.8); /* More intense glow on drag */
             border-color: var(--accent-color-dark); /* Slightly darker border on drag */
+            animation: none; /* Stop pulsating animation when dragging */
+        }
+
+        /* Logo SVG Animation */
+        @keyframes logo-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        .logo-svg {
+            animation: logo-pulse 3s ease-in-out infinite alternate;
         }
     </style>
 </head>
@@ -758,7 +790,18 @@
                 <div className="min-h-screen flex flex-col items-center p-4 sm:p-6 lg:p-8 font-montserrat text-gray-200">
                     {/* Logo */}
                     <div className="absolute top-4 left-4 text-2xl font-bold z-50">
-                        <span className="logo-text">IMG</span>
+                        {/* New Animated SVG Logo */}
+                        <svg className="logo-svg" width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="2" y="2" width="20" height="20" rx="4" stroke="url(#logoGradient)" strokeWidth="2"/>
+                            <path d="M7 12L10 15L17 8" stroke="url(#logoGradient)" strokeWidth="2"/>
+                            <defs>
+                                <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stopColor="#00F0FF" />
+                                    <stop offset="50%" stopColor="#FF00FF" />
+                                    <stop offset="100%" stopColor="#FFFF00" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
                     </div>
 
                     {/* Top AdSense Ad Unit - Conditionally rendered */}
@@ -791,9 +834,10 @@
                             {/* Drag and Drop Area */}
                             <div
                                 className={`
-                                    border-6 rounded-xl p-8 sm:p-12 mb-8 cursor-pointer transition-all duration-300 ease-in-out drag-drop-area-simple
+                                    border-4 rounded-xl p-8 sm:p-12 mb-8 cursor-pointer transition-all duration-300 ease-in-out drag-drop-area-simple
                                     ${isDragging ? 'is-dragging' : ''}
                                 `}
+                                style={{ borderColor: dominantAccentColor.hex }}
                                 onDragEnter={handleDragEnter}
                                 onDragLeave={handleDragLeave}
                                 onDragOver={handleDragOver}
